@@ -1,7 +1,7 @@
+'this script adds a Logo (Image) at 10th layer of the active input and remove it from preview
+
 dim activeinput as string = ""
 dim previewinput as string = ""
-
-API.Function("ScriptStart",Value:="Mic")
 
 do while true
 
@@ -9,10 +9,10 @@ do while true
 	dim x as new system.xml.xmldocument
 	x.loadxml(xml)
 
-dim Selo = (x.SelectSingleNode("//input[@title='APLICAR.png']/@number").Value)
+dim Logo = (x.SelectSingleNode("//input[@title='LOGO.png']/@number").Value)
 activeinput = (x.SelectSingleNode("//active").InnerText)
 previewinput = (x.SelectSingleNode("//preview").InnerText)
-API.Function("SetLayer",Input:=activeinput,Value:="10,"& Selo &"")
+API.Function("SetLayer",Input:=activeinput,Value:="10,"& Logo &"")
 
 If previewinput <> activeinput Then
 API.Function("SetLayer",Input:=previewinput,Value:="10,None")
