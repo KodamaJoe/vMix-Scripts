@@ -1,0 +1,28 @@
+'Esse Script altera o nome enviado pelo vMix Social em uma tarja pelo nome pré-definido em uma planilha Google 
+'também pode ser utilizado com outras fontes de dados
+
+dim	var1	as string =	"nome_da_comunidade1"
+dim	var2	as string =	"nome_da_comunidade2"
+dim	var3	as string =	"nome_da_comunidade3"
+
+Do While True
+dim xml as string = API.XML()
+   dim x as new system.xml.xmldocument
+   x.loadxml(xml)
+
+dim nt as string = x.SelectSingleNode("//input[@shortTitle='TARJA CHAT']/text[4]/text()").value
+
+Select Case nt
+    Case var1
+        API.Function("DataSourceSelectRow", Value:="Google Sheet,Table,0")
+    Case var2
+        API.Function("DataSourceSelectRow", Value:="Google Sheet,Table,1")
+    Case var3
+        API.Function("DataSourceSelectRow", Value:="Google Sheet,Table,2")
+    Case Else
+        ' Opcional: Ação a ser tomada se nt não corresponder a nenhum caso
+        ' Console.WriteLine("Nenhuma correspondência encontrada para nt: " & nt)
+End Select
+
+sleep(500)
+Loop
