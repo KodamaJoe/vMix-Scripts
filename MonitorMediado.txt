@@ -1,5 +1,4 @@
 ' Script para monitorar o estado do microfone e gerar relatórios precisos,
-' utilizando uma lógica simplificada para evitar entradas duplicadas.
 
 ' --- Variáveis Estáticas ---
 ' Armazenam os valores entre as execuções do loop.
@@ -16,7 +15,7 @@ Static scriptIniciadoLog As Boolean = False
 ' Log que aparece apenas uma vez, quando o script inicia o loop.
 If Not scriptIniciadoLog Then
     ' Opcional: Descomente a linha abaixo para ver um log único na inicialização.
-    ' Console.WriteLine("VMIX SCRIPT (Mediado v4): Loop de monitoramento iniciado.")
+    ' Console.WriteLine("VMIX SCRIPT: Loop de monitoramento iniciado.")
     scriptIniciadoLog = True
 End If
 
@@ -33,7 +32,7 @@ Do While True ' Loop contínuo para monitoramento
         If mutedNode IsNot Nothing Then
             Boolean.TryParse(mutedNode.Value, microfoneEstaMudoAtualmente)
         Else
-            Console.WriteLine("VMIX SCRIPT (Mediado v4 - Loop): AVISO - Nó 'MICROFONES' não encontrado. Pausando por 5s.")
+            Console.WriteLine("VMIX SCRIPT (Loop): AVISO - Nó 'MICROFONES' não encontrado. Pausando por 5s.")
             Threading.Thread.Sleep(5000)
             Continue Do
         End If
@@ -55,11 +54,11 @@ Do While True ' Loop contínuo para monitoramento
                 ' --- LÓGICA DO RELATÓRIO 1 (Início do corte) ---
                 Try
                     Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
-                    Dim diretorioRelatorio As String = "D:\Relatorio\Mediado"
-                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Mediado_" & diaRelatorio & ".txt"
+                    Dim diretorioRelatorio As String = "D:\Relatorio"
+                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_" & diaRelatorio & ".txt"
 
                     If (Not System.IO.Directory.Exists(diretorioRelatorio)) Then System.IO.Directory.CreateDirectory(diretorioRelatorio)
-                    If (Not System.IO.File.Exists(nomeArquivoRelatorio)) Then System.IO.File.WriteAllText(nomeArquivoRelatorio, "Relatório de Gravação vMix - Projeto Mediado - " & diaRelatorio & Environment.NewLine & Environment.NewLine)
+                    If (Not System.IO.File.Exists(nomeArquivoRelatorio)) Then System.IO.File.WriteAllText(nomeArquivoRelatorio, "Relatório de Gravação vMix - Projeto  - " & diaRelatorio & Environment.NewLine & Environment.NewLine)
 
                     Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
                     xmlRelatorioDoc.LoadXml(xmlMonitorString) ' Reutiliza o XML já lido
@@ -84,7 +83,7 @@ Do While True ' Loop contínuo para monitoramento
                     
                     System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
                 Catch exRel1 As Exception
-                    Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4) ao gerar Relatorio 1: " & exRel1.Message)
+                    Console.WriteLine("ERRO VMIX SCRIPT  ao gerar Relatorio 1: " & exRel1.Message)
                 End Try
                 ' --- FIM DA LÓGICA DO RELATÓRIO 1 ---
             End If
@@ -95,8 +94,8 @@ Do While True ' Loop contínuo para monitoramento
                 ' --- LÓGICA DO RELATÓRIO 2 (Fim do corte) ---
                  Try
                     Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
-                    Dim diretorioRelatorio As String = "D:\Relatorio\Mediado"
-                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Mediado_" & diaRelatorio & ".txt"
+                    Dim diretorioRelatorio As String = "D:\Relatorio"
+                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_" & diaRelatorio & ".txt"
 
                     Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
                     xmlRelatorioDoc.LoadXml(xmlMonitorString) ' Reutiliza o XML já lido
@@ -115,7 +114,7 @@ Do While True ' Loop contínuo para monitoramento
                     
                     System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
                 Catch exRel2 As Exception
-                    Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4) ao gerar Relatorio 2: " & exRel2.Message)
+                    Console.WriteLine("ERRO VMIX SCRIPT  ao gerar Relatorio 2: " & exRel2.Message)
                 End Try
                 ' --- FIM DA LÓGICA DO RELATÓRIO 2 ---
             End If
@@ -125,7 +124,7 @@ Do While True ' Loop contínuo para monitoramento
         ultimoEstadoMicrofoneConhecido = microfoneEstaMudoAtualmente
 
     Catch ex As Exception
-        Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4 - Loop Principal): " & ex.Message)
+        Console.WriteLine("ERRO VMIX SCRIPT ( Loop Principal): " & ex.Message)
         Threading.Thread.Sleep(5000)
     End Try
 
