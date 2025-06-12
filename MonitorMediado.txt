@@ -1,0 +1,133 @@
+' Script para monitorar o estado do microfone e gerar relatórios precisos,
+' utilizando uma lógica simplificada para evitar entradas duplicadas.
+
+' --- Variáveis Estáticas ---
+' Armazenam os valores entre as execuções do loop.
+
+' Guarda o último estado conhecido do microfone (True = Mudo, False = Ligado).
+' Começa como True, assumindo que o microfone está mudo no início.
+Static ultimoEstadoMicrofoneConhecido As Boolean = True
+
+' Garante que o script não registre logs antes da apresentação realmente começar.
+Static apresentacaoIniciada As Boolean = False
+
+Static scriptIniciadoLog As Boolean = False
+
+' Log que aparece apenas uma vez, quando o script inicia o loop.
+If Not scriptIniciadoLog Then
+    ' Opcional: Descomente a linha abaixo para ver um log único na inicialização.
+    ' Console.WriteLine("VMIX SCRIPT (Mediado v4): Loop de monitoramento iniciado.")
+    scriptIniciadoLog = True
+End If
+
+Do While True ' Loop contínuo para monitoramento
+    Try
+        ' 1. Obtém os dados da API e o estado atual do microfone.
+        Dim xmlMonitorString As String = API.XML()
+        Dim xmlMonitorDoc As New System.Xml.XmlDocument()
+        xmlMonitorDoc.LoadXml(xmlMonitorString)
+
+        Dim mutedNode As System.Xml.XmlNode = xmlMonitorDoc.SelectSingleNode("//input[@shortTitle='MICROFONES']/@muted")
+        Dim microfoneEstaMudoAtualmente As Boolean = True ' Padrão para mudo se não encontrado.
+
+        If mutedNode IsNot Nothing Then
+            Boolean.TryParse(mutedNode.Value, microfoneEstaMudoAtualmente)
+        Else
+            Console.WriteLine("VMIX SCRIPT (Mediado v4 - Loop): AVISO - Nó 'MICROFONES' não encontrado. Pausando por 5s.")
+            Threading.Thread.Sleep(5000)
+            Continue Do
+        End If
+
+        ' 2. Lógica principal baseada na MUDANÇA DE ESTADO.
+
+        ' Se a apresentação ainda não começou, apenas aguarda o microfone ser ligado.
+        If Not apresentacaoIniciada Then
+            If Not microfoneEstaMudoAtualmente Then
+                ' O microfone foi ligado pela primeira vez. A apresentação começou.
+                apresentacaoIniciada = True
+            End If
+        Else
+            ' A apresentação já começou, agora monitoramos as mudanças.
+
+            ' CONDIÇÃO PARA "INÍCIO DO CORTE":
+            ' Ocorre APENAS se o microfone está mudo AGORA e estava LIGADO no ciclo anterior.
+            If microfoneEstaMudoAtualmente AndAlso (ultimoEstadoMicrofoneConhecido = False) Then
+                ' --- LÓGICA DO RELATÓRIO 1 (Início do corte) ---
+                Try
+                    Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
+                    Dim diretorioRelatorio As String = "D:\Relatorio\Mediado"
+                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Mediado_" & diaRelatorio & ".txt"
+
+                    If (Not System.IO.Directory.Exists(diretorioRelatorio)) Then System.IO.Directory.CreateDirectory(diretorioRelatorio)
+                    If (Not System.IO.File.Exists(nomeArquivoRelatorio)) Then System.IO.File.WriteAllText(nomeArquivoRelatorio, "Relatório de Gravação vMix - Projeto Mediado - " & diaRelatorio & Environment.NewLine & Environment.NewLine)
+
+                    Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
+                    xmlRelatorioDoc.LoadXml(xmlMonitorString) ' Reutiliza o XML já lido
+
+                    Dim durationValue As String = "0"
+                    Dim durationNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//recording/@duration")
+                    If durationNodeRel IsNot Nothing Then durationValue = durationNodeRel.Value
+                    Dim durationRelatorio As Integer = 0
+                    Integer.TryParse(durationValue, durationRelatorio)
+                    
+                    Dim timestampRelatorio As String = DateTime.Now.ToString("HH:mm:ss")
+                    Dim activeInputValue As String = xmlRelatorioDoc.SelectSingleNode("//active").InnerText
+                    Dim nomeInputRelatorio As String = "N/A"
+                    Dim nomeNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//input[@number='" & activeInputValue & "']/@title")
+                    If nomeNodeRel IsNot Nothing Then nomeInputRelatorio = nomeNodeRel.Value
+
+                    Dim secondRelatorio As Integer = Math.Floor(durationRelatorio Mod 60)
+                    Dim minuteRelatorio As Integer = Math.Floor((durationRelatorio / 60) Mod 60)
+                    Dim hourRelatorio As Integer = Math.Floor((durationRelatorio / (60 * 60)) Mod 60)
+
+                    Dim logEntry As String = Environment.NewLine & timestampRelatorio & " " & nomeInputRelatorio & Environment.NewLine & "Início do corte " & String.Format("{0:00}:{1:00}:{2:00}", hourRelatorio, minuteRelatorio, secondRelatorio) & Environment.NewLine
+                    
+                    System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
+                Catch exRel1 As Exception
+                    Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4) ao gerar Relatorio 1: " & exRel1.Message)
+                End Try
+                ' --- FIM DA LÓGICA DO RELATÓRIO 1 ---
+            End If
+            
+            ' CONDIÇÃO PARA "FIM DO CORTE":
+            ' Ocorre APENAS se o microfone está ligado AGORA e estava MUDO no ciclo anterior.
+            If (microfoneEstaMudoAtualmente = False) AndAlso ultimoEstadoMicrofoneConhecido Then
+                ' --- LÓGICA DO RELATÓRIO 2 (Fim do corte) ---
+                 Try
+                    Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
+                    Dim diretorioRelatorio As String = "D:\Relatorio\Mediado"
+                    Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Mediado_" & diaRelatorio & ".txt"
+
+                    Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
+                    xmlRelatorioDoc.LoadXml(xmlMonitorString) ' Reutiliza o XML já lido
+                    
+                    Dim durationValue As String = "0"
+                    Dim durationNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//recording/@duration")
+                    If durationNodeRel IsNot Nothing Then durationValue = durationNodeRel.Value
+                    Dim durationRelatorio As Integer = 0
+                    Integer.TryParse(durationValue, durationRelatorio)
+
+                    Dim secondRelatorio As Integer = Math.Floor(durationRelatorio Mod 60)
+                    Dim minuteRelatorio As Integer = Math.Floor((durationRelatorio / 60) Mod 60)
+                    Dim hourRelatorio As Integer = Math.Floor((durationRelatorio / (60 * 60)) Mod 60)
+                    
+                    Dim logEntry As String = "Fim do corte " & String.Format("{0:00}:{1:00}:{2:00}", hourRelatorio, minuteRelatorio, secondRelatorio) & Environment.NewLine
+                    
+                    System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
+                Catch exRel2 As Exception
+                    Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4) ao gerar Relatorio 2: " & exRel2.Message)
+                End Try
+                ' --- FIM DA LÓGICA DO RELATÓRIO 2 ---
+            End If
+        End If
+
+        ' 3. CRÍTICO: Atualiza a variável de "memória" com o estado deste ciclo, para ser usada no próximo.
+        ultimoEstadoMicrofoneConhecido = microfoneEstaMudoAtualmente
+
+    Catch ex As Exception
+        Console.WriteLine("ERRO VMIX SCRIPT (Mediado v4 - Loop Principal): " & ex.Message)
+        Threading.Thread.Sleep(5000)
+    End Try
+
+    Threading.Thread.Sleep(1000)
+Loop
