@@ -6,7 +6,8 @@ dim previewinput as string = ""
 dim Timeleft as double = 0
 
 API.Function("ScriptStart",Value:="TChat")
-API.Function("ScriptStart",Value:="Mic")
+API.Function("ScriptStart",Value:="MonitorMediado")
+API.Function("ScriptStart",Value:="MonitorCam")
 
 Do While True
 dim xml as string = API.XML()
