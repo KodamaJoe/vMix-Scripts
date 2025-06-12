@@ -1,0 +1,20 @@
+'this script generate a Snapshot (Image) of the current active Input and add it to a new input
+'the Image is saved as a .png-file in the vmix preset folder named "preset-name"_"Timestamp"
+
+
+'-- load the current API state
+dim xml as string = API.XML()
+dim x as new system.xml.xmldocument
+x.loadxml(xml)
+
+dim Snapshotinput as string = (x.SelectSingleNode("//active").InnerText)
+
+dim presetFile as string = (x.SelectSingleNode("/vmix/preset").InnerText)
+Dim presetFile_leftPart As String = presetFile.Split(".")(0)
+dim File_time as string = Double.Parse(DateTime.Now.ToString("HHmmss"))
+
+Dim presetFile_name As String = presetFile_leftPart + "_" + File_time + ".png"
+
+API.Function("SnapshotInput",Input:=Snapshotinput  ,Value:= presetFile_name)
+  sleep (2000)
+API.Function("AddInput",Value:="Image|"& presetFile_name)

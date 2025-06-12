@@ -1,0 +1,67 @@
+dim x as new system.xml.xmldocument
+
+dim countdowncolor as string = "White"
+dim wrapuptime as integer = 300
+dim wrapuptimecolor as string = "Orange"
+dim finalcall as integer = 100
+dim finalcallcolor as string = "Red"
+dim flashcolor as string = "Black"
+dim flashtimer as boolean
+Dim MMSS as string()
+dim i as integer
+dim timevar as string
+dim pos1 as string = ""
+dim dur1 as string = ""
+dim pos2 as string = ""
+dim dur2 as string = ""
+dim Cont1 as double = 0
+dim Cont2 as double = 0
+
+flashtimer = false
+i = 1
+
+do while true
+
+x.loadxml(API.XML())
+
+dim contador = (x.SelectSingleNode("//input[@title='TEMPO']/@number").Value)
+dim aula1 = (x.SelectSingleNode("//input[@shortTitle='Aula 01']/@number").Value)
+dim aula2 = (x.SelectSingleNode("//input[@shortTitle='Aula 02']/@number").Value)
+
+dim xmlct as string = x.SelectSingleNode("//input[@title='TEMPO']/text[3]/text()").value
+
+MMSS = xmlct.Split(New Char() {":"c})
+timevar = MMSS(0) & MMSS(1)
+dim timevarint as integer = Convert.toInt32(timevar)
+
+If timevarint > wrapuptime then
+	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=countdowncolor)
+Else if timevarint < finalcall then
+	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=finalcallcolor)
+Else
+	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=wrapuptimecolor)
+End if
+
+if timevarint < 1 then
+if flashtimer = true then
+	API.Function("SetTextColour",Input:=contador,SelectedIndex:="3",Value:=flashcolor)
+flashtimer = false
+Else
+	API.Function("SetTextColour",Input:=contador,SelectedIndex:="3",Value:=finalcallcolor)
+flashtimer = true
+End if
+End if
+
+dur1 = (x.SelectSingleNode("//input[@number='"& aula1 &"']/@duration").Value)
+pos1 = (x.SelectSingleNode("//input[@number='"& aula1 &"']/@position").Value)
+dur2 = (x.SelectSingleNode("//input[@number='"& aula2 &"']/@duration").Value)
+pos2 = (x.SelectSingleNode("//input[@number='"& aula2 &"']/@position").Value)
+
+Cont1= Double.Parse(dur1)-Double.Parse(pos1)
+Cont2= Double.Parse(dur2)-Double.Parse(pos2)
+
+API.Function("SetText",Input:=contador,SelectedIndex:="0" ,Value:=Cont1)
+API.Function("SetText",Input:=contador,SelectedIndex:="1" ,Value:=Cont2)
+
+Sleep (1000)
+Loop

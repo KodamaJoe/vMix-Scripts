@@ -1,0 +1,154 @@
+' Script para o Projeto Meet, que monitora dois inputs de áudio (MICROFONES e PALESTRANTE)
+' e gera relatórios precisos, evitando entradas duplicadas.
+
+' --- Constantes para controlar o estado do script ---
+Const EstadoMeetAguardandoInicio As Integer = 0 ' Vinhetas, esperando o início da apresentação.
+Const EstadoMeetApresentacaoAtiva As Integer = 1 ' Apresentação em andamento, monitorando ativamente.
+
+' --- Variáveis Estáticas ---
+Static estadoAtual As Integer = EstadoMeetAguardandoInicio
+' Variável de "memória" para saber se ambos estavam mudos no ciclo anterior. Começa como True.
+Static ultimoEstadoAmbosMudosConhecido As Boolean = True 
+Static scriptIniciadoLog As Boolean = False
+
+' Log que aparece apenas uma vez, quando o script inicia o loop.
+If Not scriptIniciadoLog Then
+    ' Opcional: Descomente a linha abaixo para ver um log único na inicialização.
+    ' Console.WriteLine("VMIX SCRIPT (Meet v2): Loop de monitoramento iniciado.")
+    scriptIniciadoLog = True
+End If
+
+Do While True ' Loop contínuo para monitoramento
+    Try
+        ' 1. Obtém os dados da API e o estado atual dos dois microfones.
+        Dim xmlMonitorString As String = API.XML()
+        Dim xmlMonitorDoc As New System.Xml.XmlDocument()
+        xmlMonitorDoc.LoadXml(xmlMonitorString)
+
+        ' Checa o estado do MICROFONES
+        Dim micMutedNode As System.Xml.XmlNode = xmlMonitorDoc.SelectSingleNode("//input[@shortTitle='MICROFONES']/@muted")
+        Dim microfoneEstaMudoAtualmente As Boolean = True
+        If micMutedNode IsNot Nothing Then
+            Boolean.TryParse(micMutedNode.Value, microfoneEstaMudoAtualmente)
+        Else
+            Console.WriteLine("VMIX SCRIPT (Meet v2): AVISO - Nó 'MICROFONES' não encontrado. Pausando por 5s.")
+            Threading.Thread.Sleep(5000)
+            Continue Do
+        End If
+
+        ' Checa o estado do PALESTRANTE
+        Dim palestranteMutedNode As System.Xml.XmlNode = xmlMonitorDoc.SelectSingleNode("//input[@shortTitle='PALESTRANTE']/@muted")
+        Dim palestranteEstaMudoAtualmente As Boolean = True
+        If palestranteMutedNode IsNot Nothing Then
+            Boolean.TryParse(palestranteMutedNode.Value, palestranteEstaMudoAtualmente)
+        Else
+            Console.WriteLine("VMIX SCRIPT (Meet v2): AVISO - Nó 'PALESTRANTE' não encontrado. Pausando por 5s.")
+            Threading.Thread.Sleep(5000)
+            Continue Do
+        End If
+
+        ' Variável de estado combinado para este ciclo atual.
+        Dim ambosEstaoMudosAtualmente As Boolean = microfoneEstaMudoAtualmente AndAlso palestranteEstaMudoAtualmente
+
+        ' 2. Lógica principal baseada no estado do script.
+        Select Case estadoAtual
+            Case EstadoMeetAguardandoInicio
+                ' Se Mic OU Palestrante LIGAR, a apresentação começou.
+                If Not ambosEstaoMudosAtualmente Then
+                    estadoAtual = EstadoMeetApresentacaoAtiva
+                End If
+
+            Case EstadoMeetApresentacaoAtiva
+                ' Verifica se houve uma MUDANÇA no estado combinado para registrar o log.
+
+                ' CONDIÇÃO PARA "INÍCIO DO CORTE" (PROBLEMA):
+                ' Se ambos estão mudos AGORA E NÃO ESTAVAM AMBOS mudos no último ciclo.
+                If ambosEstaoMudosAtualmente AndAlso Not ultimoEstadoAmbosMudosConhecido Then
+                    ' --- INÍCIO DA LÓGICA DO RELATÓRIO DE PROBLEMA ---
+                    Try
+                        Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
+                        Dim diretorioRelatorio As String = "D:\Relatorio\Meet"
+                        Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Meet_" & diaRelatorio & ".txt"
+
+                        If (Not System.IO.Directory.Exists(diretorioRelatorio)) Then System.IO.Directory.CreateDirectory(diretorioRelatorio)
+                        If (Not System.IO.File.Exists(nomeArquivoRelatorio)) Then System.IO.File.WriteAllText(nomeArquivoRelatorio, "Relatório de Gravação vMix - Projeto Meet - " & diaRelatorio & Environment.NewLine & Environment.NewLine)
+
+                        Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
+                        xmlRelatorioDoc.LoadXml(xmlMonitorString)
+
+                        Dim durationValue As String = "0"
+                        Dim durationNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//recording/@duration")
+                        If durationNodeRel IsNot Nothing Then durationValue = durationNodeRel.Value
+                        Dim durationRelatorio As Integer = 0
+                        Integer.TryParse(durationValue, durationRelatorio)
+                        
+                        Dim timestampRelatorio As String = DateTime.Now.ToString("HH:mm:ss")
+                        Dim activeInputValue As String = xmlRelatorioDoc.SelectSingleNode("//active").InnerText
+                        Dim nomeInputRelatorio As String = "N/A"
+                        Dim nomeNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//input[@number='" & activeInputValue & "']/@title")
+                        If nomeNodeRel IsNot Nothing Then nomeInputRelatorio = nomeNodeRel.Value
+
+                        Dim secondRelatorio As Integer = Math.Floor(durationRelatorio Mod 60)
+                        Dim minuteRelatorio As Integer = Math.Floor((durationRelatorio / 60) Mod 60)
+                        Dim hourRelatorio As Integer = Math.Floor((durationRelatorio / (60 * 60)) Mod 60)
+
+                        Dim logEntry As String = Environment.NewLine & timestampRelatorio & " (Input Ativo: " & nomeInputRelatorio & ")" & Environment.NewLine & "PROBLEMA: Microfone E Palestrante OFF. Início do corte em " & String.Format("{0:00}:{1:00}:{2:00}", hourRelatorio, minuteRelatorio, secondRelatorio) & Environment.NewLine
+                        
+                        System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
+                    Catch exRel1 As Exception
+                        Console.WriteLine("ERRO VMIX SCRIPT (Meet v2) ao gerar Relatorio (Início do corte): " & exRel1.Message)
+                    End Try
+                    ' --- FIM DA LÓGICA DO RELATÓRIO ---
+                End If
+
+                ' CONDIÇÃO PARA "FIM DO CORTE" (RETOMADA):
+                ' Se PELO MENOS UM está ligado AGORA E AMBOS ESTAVAM mudos no último ciclo.
+                If Not ambosEstaoMudosAtualmente AndAlso ultimoEstadoAmbosMudosConhecido Then
+                    ' --- INÍCIO DA LÓGICA DO RELATÓRIO DE RETOMADA ---
+                     Try
+                        Dim diaRelatorio As String = DateTime.Now.ToString("dd.MM.yy")
+                        Dim diretorioRelatorio As String = "D:\Relatorio\Meet"
+                        Dim nomeArquivoRelatorio As String = diretorioRelatorio & "\Relatorio_Meet_" & diaRelatorio & ".txt"
+
+                        Dim xmlRelatorioDoc As New System.Xml.XmlDocument()
+                        xmlRelatorioDoc.LoadXml(xmlMonitorString)
+                        
+                        Dim durationValue As String = "0"
+                        Dim durationNodeRel As System.Xml.XmlNode = xmlRelatorioDoc.SelectSingleNode("//recording/@duration")
+                        If durationNodeRel IsNot Nothing Then durationValue = durationNodeRel.Value
+                        Dim durationRelatorio As Integer = 0
+                        Integer.TryParse(durationValue, durationRelatorio)
+
+                        Dim secondRelatorio As Integer = Math.Floor(durationRelatorio Mod 60)
+                        Dim minuteRelatorio As Integer = Math.Floor((durationRelatorio / 60) Mod 60)
+                        Dim hourRelatorio As Integer = Math.Floor((durationRelatorio / (60 * 60)) Mod 60)
+                        
+                        Dim quemVoltou As String = ""
+                        If Not microfoneEstaMudoAtualmente AndAlso Not palestranteEstaMudoAtualmente Then
+                            quemVoltou = "Microfone E Palestrante ON"
+                        ElseIf Not microfoneEstaMudoAtualmente Then
+                            quemVoltou = "Microfone ON"
+                        Else
+                            quemVoltou = "Palestrante ON"
+                        End If
+                        
+                        Dim logEntry As String = "RETOMADA (" & quemVoltou & "): Fim do corte em " & String.Format("{0:00}:{1:00}:{2:00}", hourRelatorio, minuteRelatorio, secondRelatorio) & Environment.NewLine
+                        
+                        System.IO.File.AppendAllText(nomeArquivoRelatorio, logEntry)
+                    Catch exRel2 As Exception
+                        Console.WriteLine("ERRO VMIX SCRIPT (Meet v2) ao gerar Relatorio (Fim do corte): " & exRel2.Message)
+                    End Try
+                    ' --- FIM DA LÓGICA DO RELATÓRIO ---
+                End If
+        End Select
+
+        ' 3. CRÍTICO: Atualiza a variável de "memória" com o estado combinado deste ciclo.
+        ultimoEstadoAmbosMudosConhecido = ambosEstaoMudosAtualmente
+
+    Catch ex As Exception
+        Console.WriteLine("ERRO VMIX SCRIPT (Meet v2 - Loop Principal): " & ex.Message)
+        Threading.Thread.Sleep(5000)
+    End Try
+
+    Threading.Thread.Sleep(1000)
+Loop

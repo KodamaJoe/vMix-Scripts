@@ -1,0 +1,85 @@
+dim	bar1	as string =	"barcel_235_8ef_1_2025"
+dim	bar2	as string =	"barcel_235_8ef_2_2025"
+dim	bar3	as string =	"barcel_235_8ef_3_2025"
+dim	bar4	as string =	"barcel_235_8ef_4_2025"
+dim	bor11	as string =	"borba11"
+dim	bor2	as string =	
+dim	car1	as string =	"careiv_292_9ef_1v_2024"
+dim	gua1	as string =	"guajar_380_8ef_1_2025"
+dim	gua2	as string =	"guajar_380_8ef_2_2025"
+dim	gua3	as string =	"guajar_380_8ef_3_2025"
+dim	ipi1	as string =	"ipixun_385_8ef_1_2025"
+dim	ipi6	as string =	"ipixun_385_8ef_6_2025"
+dim	ipi10	as string =	"ipixuna10"
+dim	ira1	as string =	"irandu_7712_7ef_1_2025-web"
+dim	ita38	as string =	
+dim	jap1	as string =	"japura_359_1em_1n_2024"
+dim	jap2	as string =	"japura_359_2em_1n_2024"
+dim jap3	as string = "japura_359_3em_1_2025"
+dim	man1	as string =	"manaca_412_8ef_1_2025"
+dim	man2	as string =	"manaca_412_8ef_2_2025"
+dim	mana1	as string =	
+dim sant1 	as string = "santai_221_1em_7_2025"
+dim	sil1	as string =	"silves_216_8ef_1_2025"
+dim	uar1	as string =	"uarini_7742_3em_1_2025"
+dim	uar2	as string =	"uarini_7742_8ef_1v_2024"
+
+Do While True
+dim xml as string = API.XML()
+   dim x as new system.xml.xmldocument
+   x.loadxml(xml)
+
+dim nt as string = x.SelectSingleNode("//input[@shortTitle='TARJA CHAT']/text[4]/text()").value
+
+Select Case nt
+    Case bar1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,0")
+    Case bar2
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,1")
+    Case bar3
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,2")
+    Case bar4
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,3")
+    Case bor11
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,4")
+    Case bor2 ' Lembre-se que bor2 não foi inicializado com valor
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,5")
+    Case car1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,6")
+    Case gua1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,7")
+    Case gua2
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,8")
+    Case gua3
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,9")
+    Case ipi1 ' Corrigir o valor aqui
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,10") 
+    Case ipi6
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,11")
+    Case ipi10
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,12")
+    Case ira1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,13")
+    Case ita38 ' Lembre-se que ita38 não foi inicializado com valor
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,14")
+    Case jap1, jap2, jap3 ' Múltiplos casos podem levar à mesma ação
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,15")
+    Case man1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,16")
+    Case man2
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,17")
+    Case mana1 ' Lembre-se que mana1 não foi inicializado com valor
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,18")
+    Case sant1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,19")
+    Case sil1
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,20")
+    Case uar1, uar2 ' Múltiplos casos podem levar à mesma ação
+        API.Function("DataSourceSelectRow", Value:="Comunidades,T8EF,21")
+    Case Else
+        ' Opcional: Ação a ser tomada se nt não corresponder a nenhum caso
+        ' Console.WriteLine("Nenhuma correspondência encontrada para nt: " & nt)
+End Select
+
+sleep(500)
+Loop

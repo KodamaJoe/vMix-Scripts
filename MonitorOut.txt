@@ -1,0 +1,75 @@
+' Script para monitorar o status de gravação de 1 ou 2 outputs e atualizar uma tarja de status.
+
+' Variáveis estáticas para armazenar o último status conhecido.
+' Isso evita que o script atualize o texto a cada segundo se nada mudou.
+Static lastStatusOut1 As String = ""
+Static lastStatusOut2 As String = ""
+Static scriptIniciadoLog As Boolean = False
+
+' Log que aparece apenas uma vez, quando o script inicia o loop.
+If Not scriptIniciadoLog Then
+    Console.WriteLine("VMIX SCRIPT: Monitor de Status de Gravação INICIADO.")
+    scriptIniciadoLog = True
+End If
+
+Do While True ' Loop contínuo para monitoramento
+    Try
+        ' 1. Obtém os dados da API do vMix
+        Dim xmlString As String = API.XML()
+        Dim xmlDoc As New System.Xml.XmlDocument()
+        xmlDoc.LoadXml(xmlString)
+
+        ' 2. Encontra o número do input da tarja de STATUS
+        Dim statusInputNode As System.Xml.XmlNode = xmlDoc.SelectSingleNode("//input[@shortTitle='STATUS']/@number")
+        
+        ' Se a tarja de status não for encontrada, exibe um aviso e aguarda antes de tentar novamente.
+        If statusInputNode Is Nothing Then
+            Console.WriteLine("VMIX SCRIPT: AVISO - Input com shortTitle='STATUS' não foi encontrado.")
+            Threading.Thread.Sleep(5000) ' Pausa de 5 segundos se a tarja não existe, para não sobrecarregar o log.
+            Continue Do
+        End If
+        Dim statusInputNumber As String = statusInputNode.Value
+
+        ' 3. Define o status padrão (Parado) e então verifica o estado real
+        Dim currentStatusOut1 As String = "Parado"
+        Dim currentStatusOut2 As String = "Parado"
+
+        ' Procura pelo nó de gravação
+        Dim recordingNode As System.Xml.XmlNode = xmlDoc.SelectSingleNode("//recording")
+
+        ' Verifica se o nó <recording> existe e se seu valor é True.
+        If recordingNode IsNot Nothing AndAlso recordingNode.InnerText.ToLower() = "true" Then
+            ' Se está gravando, pelo menos o Output 1 está ativo.
+            currentStatusOut1 = "Gravando"
+
+            ' Agora, verifica se o atributo "filename2" existe para confirmar a segunda gravação.
+            If recordingNode.Attributes("filename2") IsNot Nothing Then
+                currentStatusOut2 = "Gravando"
+            End If
+        End If
+
+        ' 4. Atualiza os textos na tarja APENAS se o status tiver mudado
+        ' OBS: Os SelectedIndex foram trocados para corresponder à ordem dos campos de texto na tarja do vMix.
+        If currentStatusOut1 <> lastStatusOut1 Then
+            ' ATUALIZAÇÃO: Assumindo que Output 1 corresponde ao SelectedIndex 0. Ajuste se necessário.
+            API.Function("SetText", Input:=statusInputNumber, SelectedIndex:="0", Value:=currentStatusOut1)
+            lastStatusOut1 = currentStatusOut1 ' Atualiza o último status conhecido
+            Console.WriteLine("VMIX SCRIPT: Status do Output 1 alterado para: " & currentStatusOut1)
+        End If
+
+        If currentStatusOut2 <> lastStatusOut2 Then
+             ' ATUALIZAÇÃO: Assumindo que Output 2 corresponde ao SelectedIndex 1. Ajuste se necessário.
+            API.Function("SetText", Input:=statusInputNumber, SelectedIndex:="1", Value:=currentStatusOut2)
+            lastStatusOut2 = currentStatusOut2 ' Atualiza o último status conhecido
+            Console.WriteLine("VMIX SCRIPT: Status do Output 2 alterado para: " & currentStatusOut2)
+        End If
+
+    Catch ex As Exception
+        Console.WriteLine("ERRO VMIX SCRIPT (Monitor de Gravação): " & ex.Message)
+        ' Em caso de erro, aguarda um pouco mais antes de tentar novamente.
+        Threading.Thread.Sleep(5000)
+    End Try
+
+    ' Pausa de 1 segundo antes da próxima verificação.
+    Threading.Thread.Sleep(1000)
+Loop

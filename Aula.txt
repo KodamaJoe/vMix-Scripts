@@ -1,0 +1,71 @@
+dim timer as string = "00:00:00"
+dim position as string = ""
+dim duration as string = ""
+dim activeinput as string = ""
+dim previewinput as string = ""
+dim Timeleft as double = 0
+
+API.Function("ScriptStart",Value:="TChat")
+API.Function("ScriptStart",Value:="Mic")
+
+Do While True
+dim xml as string = API.XML()
+   dim x as new system.xml.xmldocument
+   x.loadxml(xml)
+
+dim Hino = (x.SelectSingleNode("//input[@shortTitle='HINO']/@number").Value)
+dim Intervalo = (x.SelectSingleNode("//input[@shortTitle='INTERVALO']/@number").Value)
+dim Interatividade = (x.SelectSingleNode("//input[@shortTitle='INTERATIVIDADE']/@number").Value)
+
+timer = DateTime.Now.ToString("HH:mm:ss")
+
+Select Case timer
+    Case "13:25:33"
+        API.Function("CutDirect",Input:=Hino) 
+        API.Function("StartRecording")
+    Case "14:45:00"
+        API.Function("CutDirect",Input:=Interatividade)
+        API.Function("StartRecording")
+    Case "16:05:00"
+        API.Function("CutDirect",Input:=Interatividade)
+        API.Function("StartRecording")
+    Case Else
+        'Console.WriteLine("Erro")
+End Select
+	
+dim Selo = (x.SelectSingleNode("//input[@title='APLICAR.png']/@number").Value)
+activeinput = (x.SelectSingleNode("//active").InnerText)
+previewinput = (x.SelectSingleNode("//preview").InnerText)
+duration = (x.SelectSingleNode("//input[@number='"& activeinput &"']/@duration").Value)
+position = (x.SelectSingleNode("//input[@number='"& activeinput &"']/@position").Value)
+API.Function("SetLayer",Input:=activeinput,Value:="10,"& Selo &"")
+
+If previewinput <> activeinput Then
+	API.Function("SetLayer",Input:=previewinput,Value:="10,None")
+End If
+
+Timeleft= Double.Parse(duration)-Double.Parse(position)
+Timeleft = Timeleft / 100
+dim Timingleft as integer = CInt(Timeleft)
+Timingleft = Timingleft / 10
+dim Minutes as integer = Timingleft \ 60
+dim Seconds as integer = Timingleft Mod 60
+
+dim ThisTime as string 
+ThisTime = Minutes.ToString("00") + ":" + Seconds.ToString("00")
+
+dim Durvid = (x.SelectSingleNode("//input[@title='DuracaoVideo.gtzip']/@number").Value)
+if Timingleft < 60
+    API.Function("SetText",Input:=Durvid,SelectedIndex:="1" ,Value:=Timingleft) ' Value:=":", Value:=Seconds)
+       if Timingleft < 30 
+       API.Function("SetTextColour",Input:=Durvid,SelectedIndex:="1" ,Value:="red")
+    else
+       API.Function("SetTextColour",Input:=Durvid,SelectedIndex:="1" ,Value:="orange")
+    end if  
+else
+    API.Function("SetText",Input:=Durvid,SelectedIndex:="1" ,Value:=ThisTime)
+    API.Function("SetTextColour",Input:=Durvid,SelectedIndex:="1" ,Value:="green")
+ end if
+
+sleep(5)
+Loop

@@ -1,0 +1,20 @@
+dia = DateTime.Now.ToString("dd.MM.yy")
+path = Aula 02 - 30.05.25\4. Transmissão
+
+path = "\\172.21.0.2\producao 2025\1. Ensino Fundamental\8º Ano\04. Língua Portuguesa\ "+dia+".txt"
+dim dia as string = ""
+
+
+
+
+'=============================
+'= Cria arquivo do relatório =
+'=============================
+do
+dim dia as string = ""
+dia = DateTime.Now.ToString("dd.MM.yy")
+dim filename as string = ""
+filename="D:\Relatorio\Relatorio "+dia+".txt"
+If (Not System.IO.File.Exists(filename)) Then
+   My.Computer.FileSystem.WriteAllText(filename, " ", True)
+End If
