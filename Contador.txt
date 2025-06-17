@@ -1,67 +1,259 @@
-dim x as new system.xml.xmldocument
+' Script simplificado para controle de visibilidade, contagem de cartelas e cores do timer.
+'
+' --- INSTRUÇÕES DE CONTROLE ---
+' 1. Seleção de Questão (Q1-Q4, RESET): Usa gatilhos que enviam para DynamicValue1.
+' 2. Controle do Timer (START, PAUSE, RESET, D1, D2, etc., AD10, SUB10, etc.): Usa gatilhos que enviam para DynamicValue2.
+'----------------------------------------------------------------------------------------------------
 
-dim countdowncolor as string = "White"
-dim wrapuptime as integer = 300
-dim wrapuptimecolor as string = "Orange"
-dim finalcall as integer = 100
-dim finalcallcolor as string = "Red"
-dim flashcolor as string = "Black"
-dim flashtimer as boolean
-Dim MMSS as string()
-dim i as integer
-dim timevar as string
-dim pos1 as string = ""
-dim dur1 as string = ""
-dim pos2 as string = ""
-dim dur2 as string = ""
-dim Cont1 as double = 0
-dim Cont2 as double = 0
+' --- CONFIGURAÇÃO ---
+' Altere os valores abaixo para corresponderem EXATAMENTE aos nomes dos seus inputs.
 
-flashtimer = false
-i = 1
+' --- Nomes dos Inputs ---
+Const CONTADOR_SHORTTITLE As String = "TEMPO" ' Nome Curto (shortTitle) do input da tarja principal.
+' Nomes Curtos (shortTitle) dos inputs que representam as aulas de cada questão.
+Const AULA1_SHORTTITLE As String = "Aula 01"
+Const AULA2_SHORTTITLE As String = "Aula 02"
+Const AULA3_SHORTTITLE As String = "Aula 03"
+Const AULA4_SHORTTITLE As String = "Aula 04"
 
-do while true
+' --- Configuração de Tempo (em segundos) ---
+Const TEMPO_ALERTA_LARANJA As Integer = 180  ' Tempo em segundos para a cor ficar laranja (3 minutos).
+Const TEMPO_ALERTA_VERMELHO As Integer = 60  ' Tempo em segundos para a cor ficar vermelha (1 minuto).
 
-x.loadxml(API.XML())
+' --- Configuração de Cores (use nomes de cores ou valores hex "AARRGGBB", ex: "&HFFFF0000" para vermelho) ---
+Const COR_NORMAL As String = "White"
+Const COR_LARANJA As String = "Orange"
+Const COR_VERMELHO As String = "Red"
+Const COR_PISCA_1 As String = "Red"
+Const COR_PISCA_2 As String = "Black"
+' --- FIM DA CONFIGURAÇÃO ---
 
-dim contador = (x.SelectSingleNode("//input[@title='TEMPO']/@number").Value)
-dim aula1 = (x.SelectSingleNode("//input[@shortTitle='Aula 01']/@number").Value)
-dim aula2 = (x.SelectSingleNode("//input[@shortTitle='Aula 02']/@number").Value)
+' --- Estados do Timer ---
+Const ESTADO_PARADO As Integer = 0
+Const ESTADO_CONTAGEM As Integer = 1
+Const ESTADO_EXCEDENTE As Integer = 2
+Const ESTADO_EXCEDENTE_PAUSADO As Integer = 3
 
-dim xmlct as string = x.SelectSingleNode("//input[@title='TEMPO']/text[3]/text()").value
+' --- Variáveis Estáticas (mantêm seus valores entre os ciclos do loop) ---
+Static questaoAtual As Integer = 0 ' Começa com 0 (nenhuma questão ativa).
+Static estadoTimer As Integer = ESTADO_PARADO ' Estado específico para o timer
+Static contadorInputNumber As String = ""
+Static aulaInputNumbers(3) As String ' Array para armazenar os números dos 4 inputs de aula.
+Static setupCompleto As Boolean = False
+Static overtimeSeconds As Integer = 0
+Static flashtimer As Boolean = False
 
-MMSS = xmlct.Split(New Char() {":"c})
-timevar = MMSS(0) & MMSS(1)
-dim timevarint as integer = Convert.toInt32(timevar)
+' --- Loop Principal de Monitoramento ---
+Do While True
+    Try
+        ' --- Bloco de Configuração Inicial (executa apenas uma vez) ---
+        If Not setupCompleto Then
+            Console.WriteLine("VMIX SCRIPT (Contador): Iniciando configuração...")
+            Dim xmlSetup As New System.Xml.XmlDocument()
+            xmlSetup.LoadXml(API.XML())
+            Dim tempNode As System.Xml.XmlNode
+            Dim errorLog As New System.Text.StringBuilder()
 
-If timevarint > wrapuptime then
-	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=countdowncolor)
-Else if timevarint < finalcall then
-	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=finalcallcolor)
-Else
-	API.Function("SetTextColour",Input:=contador,SelectedIndex:="2",Value:=wrapuptimecolor)
-End if
+            tempNode = xmlSetup.SelectSingleNode("//input[@shortTitle='" & CONTADOR_SHORTTITLE & "']/@number")
+            If tempNode IsNot Nothing Then contadorInputNumber = tempNode.Value Else errorLog.AppendLine(" - Input da tarja principal com shortTitle='" & CONTADOR_SHORTTITLE & "' não foi encontrado.")
+            tempNode = xmlSetup.SelectSingleNode("//input[@shortTitle='" & AULA1_SHORTTITLE & "']/@number")
+            If tempNode IsNot Nothing Then aulaInputNumbers(0) = tempNode.Value Else errorLog.AppendLine(" - Input de contagem com shortTitle='" & AULA1_SHORTTITLE & "' não foi encontrado.")
+            tempNode = xmlSetup.SelectSingleNode("//input[@shortTitle='" & AULA2_SHORTTITLE & "']/@number")
+            If tempNode IsNot Nothing Then aulaInputNumbers(1) = tempNode.Value Else errorLog.AppendLine(" - Input de contagem com shortTitle='" & AULA2_SHORTTITLE & "' não foi encontrado.")
+            tempNode = xmlSetup.SelectSingleNode("//input[@shortTitle='" & AULA3_SHORTTITLE & "']/@number")
+            If tempNode IsNot Nothing Then aulaInputNumbers(2) = tempNode.Value Else errorLog.AppendLine(" - Input de contagem com shortTitle='" & AULA3_SHORTTITLE & "' não foi encontrado.")
+            tempNode = xmlSetup.SelectSingleNode("//input[@shortTitle='" & AULA4_SHORTTITLE & "']/@number")
+            If tempNode IsNot Nothing Then aulaInputNumbers(3) = tempNode.Value Else errorLog.AppendLine(" - Input de contagem com shortTitle='" & AULA4_SHORTTITLE & "' não foi encontrado.")
 
-if timevarint < 1 then
-if flashtimer = true then
-	API.Function("SetTextColour",Input:=contador,SelectedIndex:="3",Value:=flashcolor)
-flashtimer = false
-Else
-	API.Function("SetTextColour",Input:=contador,SelectedIndex:="3",Value:=finalcallcolor)
-flashtimer = true
-End if
-End if
+            If errorLog.Length > 0 Then
+                Console.WriteLine("VMIX SCRIPT (Contador): ERRO DE CONFIGURAÇÃO! Itens não encontrados:")
+                Console.WriteLine(errorLog.ToString())
+                Threading.Thread.Sleep(5000)
+                Continue Do
+            Else
+                API.Function("SetDynamicValue1", Value:="")
+                API.Function("SetDynamicValue2", Value:="")
+                Console.WriteLine("VMIX SCRIPT (Contador): Configuração concluída. Aguardando gatilho via Atalho.")
+                setupCompleto = True
+            End If
+        End If
 
-dur1 = (x.SelectSingleNode("//input[@number='"& aula1 &"']/@duration").Value)
-pos1 = (x.SelectSingleNode("//input[@number='"& aula1 &"']/@position").Value)
-dur2 = (x.SelectSingleNode("//input[@number='"& aula2 &"']/@duration").Value)
-pos2 = (x.SelectSingleNode("//input[@number='"& aula2 &"']/@position").Value)
+        ' --- Loop de Operação Normal ---
+        Dim x As New System.Xml.XmlDocument()
+        x.LoadXml(API.XML())
 
-Cont1= Double.Parse(dur1)-Double.Parse(pos1)
-Cont2= Double.Parse(dur2)-Double.Parse(pos2)
+        ' --- Processa Gatilho de QUESTÃO (DynamicValue1) ---
+        Dim gatilhoQuestaoNode As System.Xml.XmlNode = x.SelectSingleNode("//dynamic/value1")
+        Dim gatilhoQuestao As String = ""
+        If gatilhoQuestaoNode IsNot Nothing Then gatilhoQuestao = gatilhoQuestaoNode.InnerText
+        If Not String.IsNullOrEmpty(gatilhoQuestao) Then
+            Select Case gatilhoQuestao.ToUpper()
+                Case "Q1", "Q2", "Q3", "Q4"
+                    Dim numQuestao As Integer = Integer.Parse(gatilhoQuestao.Substring(1))
+                    questaoAtual = numQuestao
+                    For i As Integer = 1 To 4
+                        API.Function("SetTextVisibleOn", Input:=contadorInputNumber, SelectedIndex:=i - 1, Value:=(i = numQuestao))
+                    Next
+                Case "RESET"
+                    questaoAtual = 0
+                    For i As Integer = 1 To 4
+                        API.Function("SetTextVisibleOff", Input:=contadorInputNumber, SelectedIndex:=i - 1)
+                    Next
+            End Select
+            API.Function("SetDynamicValue1", Value:="")
+        End If
 
-API.Function("SetText",Input:=contador,SelectedIndex:="0" ,Value:=Cont1)
-API.Function("SetText",Input:=contador,SelectedIndex:="1" ,Value:=Cont2)
+        ' --- Processa Gatilho do TIMER (DynamicValue2) ---
+        Dim gatilhoTimerNode As System.Xml.XmlNode = x.SelectSingleNode("//dynamic/value2")
+        Dim gatilhoTimer As String = ""
+        If gatilhoTimerNode IsNot Nothing Then gatilhoTimer = gatilhoTimerNode.InnerText
+        If Not String.IsNullOrEmpty(gatilhoTimer) Then
+            Select Case gatilhoTimer.ToUpper()
+                Case "START"
+                    estadoTimer = ESTADO_CONTAGEM
+                    overtimeSeconds = 0
+                    API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:="6", Value:="Tempo Aula")
+                    API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="4", Value:=COR_NORMAL)
+                    API.Function("StartCountdown", Input:=contadorInputNumber, SelectedIndex:="4")
+                    API.Function("SetTextVisibleOn", Input:=contadorInputNumber, SelectedIndex:="4")
+                    API.Function("SetTextVisibleOff", Input:=contadorInputNumber, SelectedIndex:="5")
+                Case "PAUSE"
+                    If estadoTimer = ESTADO_EXCEDENTE Then
+                        estadoTimer = ESTADO_EXCEDENTE_PAUSADO
+                        API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="5", Value:=COR_VERMELHO)
+                    ElseIf estadoTimer = ESTADO_EXCEDENTE_PAUSADO Then
+                        estadoTimer = ESTADO_EXCEDENTE
+                    End If
+                Case "RESET"
+                    estadoTimer = ESTADO_PARADO
+                    overtimeSeconds = 0
+                    API.Function("StopCountdown", Input:=contadorInputNumber, SelectedIndex:="4")
+                    API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:="4", Value:="00:00") ' Zera visualmente
+                    API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:="5", Value:="00:00") ' Zera visualmente
+                    API.Function("SetTextVisibleOff", Input:=contadorInputNumber, SelectedIndex:="4")
+                    API.Function("SetTextVisibleOff", Input:=contadorInputNumber, SelectedIndex:="5")
+                Case "D1", "D2", "D3", "D5", "D0"
+                    Dim newTime As String = ""
+                    Select Case gatilhoTimer.ToUpper()
+                        Case "D1" : newTime = "00:10:00"
+                        Case "D2" : newTime = "00:20:00"
+                        Case "D3" : newTime = "00:30:00"
+                        Case "D5" : newTime = "00:05:00"
+                        Case "D0" : newTime = "00:45:00"
+                    End Select
+                    API.Function("ChangeCountdown", Input:=contadorInputNumber, SelectedIndex:="4", Value:=newTime)
+                    API.Function("SetTextVisibleOn", Input:=contadorInputNumber, SelectedIndex:="4")
+                Case "ADD60"
+                    API.Function("AdjustCountdown", Input:=contadorInputNumber, SelectedIndex:="4", Value:="60")
+                Case "SUB60"
+                    API.Function("AdjustCountdown", Input:=contadorInputNumber, SelectedIndex:="4", Value:="-60")
+                Case "ADD10"
+                    API.Function("AdjustCountdown", Input:=contadorInputNumber, SelectedIndex:="4", Value:="10")
+                Case "SUB10"
+                    API.Function("AdjustCountdown", Input:=contadorInputNumber, SelectedIndex:="4", Value:="-10")
+            End Select
+            API.Function("SetDynamicValue2", Value:="")
+        End If
 
-Sleep (1000)
+        ' --- LÓGICA DE ATUALIZAÇÃO CONTÍNUA ---
+        ' 1. Monitora o timer e atualiza estados e cores
+        If estadoTimer = ESTADO_CONTAGEM Then
+            Dim tempoRestanteNode As System.Xml.XmlNode = x.SelectSingleNode("//input[@shortTitle='" & CONTADOR_SHORTTITLE & "']/text[@index='4']")
+            If tempoRestanteNode IsNot Nothing Then
+                Dim tempoRestanteTexto As String = tempoRestanteNode.InnerText
+                Dim partesTempo As String() = tempoRestanteTexto.Split(":"c)
+                If partesTempo.Length >= 2 Then
+                    Dim totalSegundos As Integer = (Integer.Parse(partesTempo(0).Trim())) * 60 + Integer.Parse(partesTempo(1).Trim())
+                    If totalSegundos <= TEMPO_ALERTA_VERMELHO Then
+                        API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="4", Value:=COR_VERMELHO)
+                    ElseIf totalSegundos <= TEMPO_ALERTA_LARANJA Then
+                        API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="4", Value:=COR_LARANJA)
+                    Else
+                        API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="4", Value:=COR_NORMAL)
+                    End If
+                    ' Transição automática para tempo excedente
+                    If totalSegundos < 1 Then
+                        estadoTimer = ESTADO_EXCEDENTE
+                        API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:="6", Value:="Tempo Exced.")
+                        API.Function("SetTextVisibleOff", Input:=contadorInputNumber, SelectedIndex:="4")
+                        API.Function("SetTextVisibleOn", Input:=contadorInputNumber, SelectedIndex:="5")
+                    End If
+                End If
+            End If
+        ' 2. Gerencia o tempo excedente
+        ElseIf estadoTimer = ESTADO_EXCEDENTE Then
+            overtimeSeconds += 1
+            Dim minutes As Integer = Math.Floor(overtimeSeconds / 60)
+            Dim seconds As Integer = overtimeSeconds Mod 60
+            API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:="5", Value:=String.Format("{0:00}:{1:00}", minutes, seconds))
+            If flashtimer Then
+                API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="5", Value:=COR_PISCA_1)
+            Else
+                API.Function("SetTextColour", Input:=contadorInputNumber, SelectedIndex:="5", Value:=COR_PISCA_2)
+            End If
+            flashtimer = Not flashtimer
+        End If
+
+        ' 3. Atualiza o contador de cartelas da questão ativa.
+        If questaoAtual > 0 Then
+            Dim idx As Integer = questaoAtual - 1
+            Dim aulaInputNode As System.Xml.XmlNode = x.SelectSingleNode("//input[@number='" & aulaInputNumbers(idx) & "']")
+            Dim remainingTime As String = "0"
+            If aulaInputNode IsNot Nothing Then
+                Dim durNode As System.Xml.XmlNode = aulaInputNode.Attributes("duration")
+                Dim posNode As System.Xml.XmlNode = aulaInputNode.Attributes("position")
+                If durNode IsNot Nothing AndAlso posNode IsNot Nothing Then
+                    Dim durationMs, positionMs As Double
+                    Double.TryParse(durNode.Value, durationMs)
+                    Double.TryParse(posNode.Value, positionMs)
+                    remainingTime = (durationMs - positionMs).ToString("F0")
+                End If
+            End If
+            API.Function("SetText", Input:=contadorInputNumber, SelectedIndex:=idx, Value:=remainingTime)
+        End If
+
+    Catch ex As Exception
+        Console.WriteLine("ERRO VMIX SCRIPT (Contador): " & ex.Message)
+        Threading.Thread.Sleep(5000)
+    End Try
+
+    Threading.Thread.Sleep(1000) ' Pausa de 1 segundo entre os ciclos
 Loop
+
+'Atalhos a serem criados com a função ScriptStart
+'TriggerStart
+'TriggerPause
+'TriggerResetTimer
+'TriggerQ1
+'TriggerQ2
+'TriggerQ3
+'TriggerQ4
+'TriggerResetQuestoes
+'TriggerD1
+'TriggerD2
+'TriggerD3
+'TriggerD5
+'TriggerD0
+'TriggerAdd60
+'TriggerSub60
+'TriggerAdd10
+'TriggerSub10
+
+'Conteúdo dos atalhos
+'API.Function("SetDynamicValue2", Value:="START")
+'API.Function("SetDynamicValue2", Value:="PAUSE")
+'API.Function("SetDynamicValue2", Value:="RESET")
+'API.Function("SetDynamicValue1", Value:="Q1")
+'API.Function("SetDynamicValue1", Value:="Q2")
+'API.Function("SetDynamicValue1", Value:="Q3")
+'API.Function("SetDynamicValue1", Value:="Q4")
+'API.Function("SetDynamicValue1", Value:="RESET")
+'API.Function("SetDynamicValue2", Value:="D1")
+'API.Function("SetDynamicValue2", Value:="D2")
+'API.Function("SetDynamicValue2", Value:="D3")
+'API.Function("SetDynamicValue2", Value:="D5")
+'API.Function("SetDynamicValue2", Value:="D0")
+'API.Function("SetDynamicValue2", Value:="ADD60")
+'API.Function("SetDynamicValue2", Value:="SUB60")
+'API.Function("SetDynamicValue2", Value:="ADD10")
+'API.Function("SetDynamicValue2", Value:="SUB10")
