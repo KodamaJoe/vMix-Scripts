@@ -239,7 +239,7 @@ Loop
 'TriggerAdd10
 'TriggerSub10
 
-'Conteúdo dos atalhos
+'Conteúdo dos Scripts que os atalhos executam
 'API.Function("SetDynamicValue2", Value:="START")
 'API.Function("SetDynamicValue2", Value:="PAUSE")
 'API.Function("SetDynamicValue2", Value:="RESET")
